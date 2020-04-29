@@ -15,6 +15,7 @@ public class DKMeans
   private int QUALITIES;
   private int CATEGORIES;
   
+
   private ArrayList<EntityCluster> clusters;
   private ArrayList<Party> parties;
   
@@ -28,20 +29,46 @@ public class DKMeans
     this.CATEGORIES = C;
   }
 
-  public void setParties(ArrayList<Party> p)
+  public void setParties(ArrayList<Party> par)
   {
-    this.parties = p;
+    this.parties = par;
+    for(Party p: par)
+      {
+	ArrayList<Party> otherParties = new ArrayList<Party>();
+	for(Party q: par)
+	  {
+	    if(p != q)
+	      {
+		otherParties.add(q);
+	      }
+	  }
+	p.setOtherParties(otherParties);
+      }
+    NUM_ENTITIES = Party.computeEntCount(parties);// parties.get(0).computeTotalEntityCount();
+  }
+
+  public int ComputeEntCount()
+  {
+    for(Party p : parties)
+      {
+	p.broadcastCountShares();
+	//each party adds count share to IntermediateSum
+      }
+    for(Party p : parties)
+      {
+	
+	p.broadcastCountSums();
+	//each party sends its intermediate sums to,all parties they are added to final sum
+      }
+    //return final sum
+    return parties.get(0).getFinalSum();    
   }
   
   public void init()
   {
-
-    for(Party p : parties)
-      {
-	NUM_ENTITIES += p.getEntCount();
-      }
     //Create Clusters
-    //Set Random Centroids
+
+    //Set RandomCentroids
     for (int i = 0; i < NUM_CLUSTERS; i++) {
       EntityCluster cluster = new EntityCluster(i);
       Entity centroid = Entity.createRandomEntity( QUALITIES, CATEGORIES);
@@ -53,13 +80,9 @@ public class DKMeans
 
   public void init(long seed)
   {
-
-    for(Party p : parties)
-      {
-	NUM_ENTITIES += p.getEntCount();
-      }
     //Create Clusters
-    //Set Random Centroids
+
+    //Set RandomCentroids
     for (int i = 0; i < NUM_CLUSTERS; i++) {
       EntityCluster cluster = new EntityCluster(i);
       Entity centroid = Entity.createRandomEntity( QUALITIES, CATEGORIES, seed);
@@ -111,7 +134,6 @@ public class DKMeans
   public void calculate() {
     boolean finish = false;
     int iteration = 0;
-
     // Add in new data, one at a time, recalculating centroids with each new one. 
     while(!finish) {
 
@@ -140,20 +162,20 @@ public class DKMeans
 	finish = true;
       }
           
-
     }
   }
 
 
-   private ArrayList<Entity> getCentroids() {
-    	ArrayList<Entity> centroids = new ArrayList<Entity>(NUM_CLUSTERS);
-    	for(EntityCluster cluster : clusters) {
-    		Entity aux = cluster.getCentroid();
-    		Entity point = new Entity(aux.getQualities(),aux.getCategories());
-    		centroids.add(point);
-    	}
-    	return centroids;
+  private ArrayList<Entity> getCentroids()
+  {
+    ArrayList<Entity> centroids = new ArrayList<Entity>(NUM_CLUSTERS);
+    for(EntityCluster cluster : clusters) {
+      Entity aux = cluster.getCentroid();
+      Entity point = new Entity(aux.getQualities(),aux.getCategories());
+      centroids.add(point);
     }
+    return centroids;
+  }
 
  private void assignCluster()
   { 
@@ -164,46 +186,18 @@ public class DKMeans
  
   private void calculateCentroids()
   {
+    
     for(EntityCluster cluster : clusters)
       {
 	int entCount = 0;
-	ArrayList<Double> sumQual = new ArrayList<Double>();
-	for(int i = 0 ;  i < QUALITIES; i++)
-	  sumQual.add(0.0);
-	ArrayList<HashMap<Integer,Integer>> sumCat = new ArrayList<HashMap<Integer,Integer>>();
-
-	for(Party p : parties)
-	  {
-	    entCount += p.getEntCount(cluster.getId());
-	    sumQual = KMode.merge(sumQual, p.getQualitySum(cluster.getId()));
-
-	    for(int i = 0; i < CATEGORIES; i++)
-	      {
-		if(sumCat.size() < CATEGORIES)
-		  sumCat.add(   p.getCategoryHashMap(   i, cluster.getId() )   );
-		else
-		  {
-		    sumCat.set(i, KMode.mergeMaps( sumCat.get(i),   p.getCategoryHashMap(i,cluster.getId())   ));
-		  }
-	      }	
-	  }
-        
+	SharingEntity compositeClusterSum = Party.computeClusterTotal(parties, cluster.getId());
+	entCount = compositeClusterSum.getFinalCount();
+	Entity newCentroid = compositeClusterSum.toEntity();
 	Entity centroid = cluster.getCentroid();
 	if(entCount > 0)
-	  {
-	    ArrayList<Double> quals = new ArrayList<Double>();
-	    for(int i = 0; i <  QUALITIES; i++)
-	      {
-		quals.add(sumQual.get(i)/ new Double (entCount));
-	      }
-	    
-	    ArrayList<Integer> cats = new ArrayList<Integer>();
-	    for(int i = 0 ; i < CATEGORIES; i++)
-	      {
-		cats.add(KMode.mode( sumCat.get(i) ));
-	      }
-	    centroid.setQualities(quals);
-	    centroid.setCategories(cats);
+	  {	    
+	    centroid.setQualities(newCentroid.getQualities());
+	    centroid.setCategories(newCentroid.getCategories());
 	  }
       }
     
@@ -214,7 +208,7 @@ public class DKMeans
     double ret = 0.0;
     int denom = NUM_CLUSTERS;
     for(EntityCluster c : clusters)
-      {		    
+      {
 	if(c.getEntityCount() != 0)
 	  {
 	    ret += c.MSE();
@@ -230,7 +224,8 @@ public class DKMeans
   public void addParty(Party A)
   {
     parties.add(A);
-    NUM_ENTITIES += A.getEntCount();
+
+ 
   }
   
   public double minMSE()
@@ -259,8 +254,7 @@ public class DKMeans
     return ret;
   }
 
-
- public static ArrayList<Party> readPartiesFromSingleFile(String FileName, int partyCount)
+  public static ArrayList<Party> readPartiesFromSingleFile(String FileName, int partyCount)
   {
     ArrayList<Party> partyList = new ArrayList<Party>();
 
@@ -299,8 +293,6 @@ public class DKMeans
   
     return partyList;
   }
-
-  
 
   public static ArrayList<Party> readPartiesFromFiles(String FileName)
   {
@@ -345,15 +337,24 @@ public class DKMeans
     return partyList;
   }
 
- 
+  public long totalBytesShared()
+  {
+    long ret = 0;
+    for(Party p : parties)
+      {
+	ret += p.getBytesShared();
+      }
+
+    return ret;
+  }
+  
   public void writeOutput(String outputFile)
   {
     try
       {
 
 	FileWriter out = new FileWriter(outputFile);
-	out.write("Entries size: " + NUM_ENTITIES + "\n");
-	out.write("Parties size: " + parties.size() + "\n");
+	out.write("entries size: " + NUM_ENTITIES + "\n");
 	out.write("Clusters :" + NUM_CLUSTERS +"\n");
 	out.write("average MSE per cluster: " + averageMSE() + "\n" );
 	out.write("Highest MSE: " + maxMSE() + "\n" );
@@ -367,20 +368,18 @@ public class DKMeans
 	System.out.println("Output file error!\n" + e);
       }
   }
-
   
- 
   public void writeOutputCSV(FileWriter out, long elapse, String outputFile)
   {
     try
       {
 	//"Entries size: " +
 	out.write( NUM_ENTITIES + ",");
-	//"Parties size: " 
+	//"Parties size: " dd
 	out.write( parties.size() + ",");
 	//"Clusters :" +
 	out.write( NUM_CLUSTERS +",");
-	//emptu cluster cpuint
+	//empty cluster count
 	out.write( emptyClusterCount() + ",");
 	//	"average MSE per cluster: " +
 	out.write( averageMSE() + "," );
@@ -398,19 +397,7 @@ public class DKMeans
 	System.out.println("Output file error!\n" + e);
       }
   }
-
-  
-  public long totalBytesShared()
-  {
-    long ret = 0;
-    for(Party p : parties)
-      {
-	ret += p.getBytesShared();
-      }
-
-    return ret;
-  }
-  
+ 
   public static void run(String FileName, int NUM_CLUSTERS, int NUM_PARTIES, String outputFile)
   {
     ArrayList<Party> partyList = readPartiesFromSingleFile(FileName, NUM_PARTIES);
@@ -420,56 +407,46 @@ public class DKMeans
     DKMeans dkmeans = new DKMeans(NUM_CLUSTERS, QUALITIES, CATEGORIES);
     
     dkmeans.setParties(partyList);
-    
     dkmeans.init(5);
     dkmeans.calculate();
     dkmeans.writeOutput(outputFile);
     
   }
 
-  
- public static void repRun(String FileName, int NUM_CLUSTERS, int NUM_PARTIES, String outputFile) throws Exception
+  public static void repRun(String FileName, int NUM_CLUSTERS, int NUM_PARTIES, String outputFile) throws Exception
   {
     FileWriter out = new FileWriter(outputFile);
-    for(int j = 3; j <= NUM_PARTIES; j++)
+    for(int j = 1; j <= NUM_PARTIES; j++)
       {
       ArrayList<Party> partyList = readPartiesFromSingleFile(FileName,j);
       int QUALITIES = partyList.get(0).getQualityCount();
       int CATEGORIES = partyList.get(0).getCategoryCount();
       for(int i = 3; i <= NUM_CLUSTERS; i++)
 	{
-	  System.out.println("Clusters:"+ i + " Parties:" + j);
+	  long tote  = 0;
+	  for(int k = 0; k < 10; k++)
+	    {
+	      
+	      System.out.println("Clusters:"+ i + " Parties:" + j);
 	  
-	  DKMeans dkmeans = new DKMeans(i, QUALITIES, CATEGORIES);
-	  dkmeans.setParties(partyList);
-	  long start = System.nanoTime();
-	  dkmeans.init(5);
-	  dkmeans.calculate();
-	  long end = System.nanoTime();
-	  long elapsed = end - start;
-	  dkmeans.writeOutputCSV( out, elapsed, "Hrzn_" + NUM_CLUSTERS  + "c" + NUM_PARTIES  + "p" + ".csv");
+	      DKMeans dkmeans = new DKMeans(i, QUALITIES, CATEGORIES);
+	      dkmeans.setParties(partyList);
+	      long start = System.nanoTime();
+	      dkmeans.init();
+	      dkmeans.calculate();
+	      long end = System.nanoTime();
+	      long elapsed = end - start;
+	      tote += elapsed;
+	      dkmeans.writeOutputCSV( out, elapsed, "Hrzn_" + NUM_CLUSTERS  + "c" + NUM_PARTIES  + "p" + ".csv");
+	    }
+	  System.out.println(i + "clusters " + tote/10);
 	}
       
     }
     out.close();
     
   }
-
-  public String printSamples()
-  {
-    String ret = "";
-    int i = 0;
-    for(EntityCluster c : clusters)
-      {
-	ret += "i\n";
-	ret += c.getCentroid().toString(); 
-	ret += c.clusterSample();
-	ret+= "0\n";
-      }
-    return ret;
-  }
-
-  public static void main(String[] args)
+ public static void main(String[] args)
   {
     
     try
@@ -492,6 +469,7 @@ public class DKMeans
 	  }
 	
 	run(inputFile, num_clusters, num_parties, outputFile);
+
       }
     catch(ArrayIndexOutOfBoundsException e)
       {
@@ -500,6 +478,7 @@ public class DKMeans
 	e.printStackTrace();
       }
   }
+
 
 
 

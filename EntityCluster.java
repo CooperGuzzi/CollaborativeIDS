@@ -1,10 +1,11 @@
 import java.util.ArrayList;
-import java.util.Random;
+
 public class EntityCluster
 {
   public ArrayList<Entity> Entities;
-  public Entity centroid;
+  private Entity centroid;
   public int id;
+  private int entityCount;
   
 
   public EntityCluster(int id)
@@ -12,6 +13,7 @@ public class EntityCluster
     this.id = id;
     this.Entities = new ArrayList<Entity>();
     this.centroid = null;
+    entityCount = 0;
   }
 
   public ArrayList<Entity> getEntities() {
@@ -20,6 +22,7 @@ public class EntityCluster
 
   public void addEntity(Entity e) {
     Entities.add(e);
+    entityCount++;
   }
 
   public void setEntities(ArrayList<Entity> e) {
@@ -31,7 +34,7 @@ public class EntityCluster
   }
 
   public int getEntityCount() {
-    return Entities.size();
+    return entityCount;
   }
 
   public boolean isEmpty()
@@ -52,6 +55,7 @@ public class EntityCluster
   
   public void clear() {
     Entities.clear();
+    entityCount = 0;
   }
   
   public void plotCluster() {
@@ -88,22 +92,14 @@ public class EntityCluster
     return ret;
   }
   
-  public String clusterSample()
-  {
-    if(isEmpty())
-      return "";
-    Random r = new Random();
-    String ret = "";
-    int limit = Entities.size();
-    for(int i = 0; i < 10; i++)
-      {
-	ret += Entities.get( r.nextInt(limit)).toString() + "\n";
-      }
-    return ret;
-  }
-  
+
   public double MSE()
   {
+    /*
+      REPLACE FUNCTION
+      party p.sumMSE()<--SECRET SHARE
+      party p.EntCount(cluster ID)<--SECRET SHARE
+    */
     int n_points = Entities.size();	
     if(n_points == 0)
       {
