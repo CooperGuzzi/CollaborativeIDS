@@ -23,6 +23,11 @@ public class Entity
   {
     return new Entity(qualities,categories);
   }
+
+  public int getEntitySizeInBytes()
+  {
+    return (d * 8) + (dCat * 4) + 12;//quality size + category size + Entity structure
+  }
   
   public void setQualities(ArrayList<Double> q)
   {
@@ -88,7 +93,7 @@ public class Entity
       }
     return new Entity(retQual, retCat);
   }
-  
+
   public static Entity createRandomEntity(int d, int dCat, long seed)
   {
     Random r = new Random(seed);
@@ -104,7 +109,6 @@ public class Entity
       }
     return new Entity(retQual, retCat);
   }
-
   
   protected static ArrayList<Entity> createRandomEntities(int d, int dCat, int number)
   {
