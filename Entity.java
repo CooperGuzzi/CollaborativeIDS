@@ -19,6 +19,11 @@ public class Entity
     this.categories = categories;
   }
 
+  public Entity getCopy()
+  {
+    return new Entity(qualities,categories);
+  }
+  
   public void setQualities(ArrayList<Double> q)
   {
     qualities = q;
@@ -83,7 +88,7 @@ public class Entity
       }
     return new Entity(retQual, retCat);
   }
-
+  
   public static Entity createRandomEntity(int d, int dCat, long seed)
   {
     Random r = new Random(seed);
@@ -99,6 +104,7 @@ public class Entity
       }
     return new Entity(retQual, retCat);
   }
+
   
   protected static ArrayList<Entity> createRandomEntities(int d, int dCat, int number)
   {
@@ -139,36 +145,46 @@ public class Entity
 	  ret += categories.get(i) + ",";
 	ret += categories.get(dCat-1);
       }
-    return  ret ;
+    return "(" + ret + ")";
   }
-  
+
+
   public static Entity makeEntityFromString(String normalizedData){
     if(normalizedData.contains("null"))
       return null;
-    String[] data = normalizedData.split(";");
-    //[srcIP, destIP, timestamp, ruleID, srcPort, destPort, alertType]
-    double srcIP = Double.parseDouble(data[0]);
-    double destIP = Double.parseDouble(data[1]);
-    double timestamp = Double.parseDouble(data[2]);
-    int ruleID = Integer.parseInt(data[3]);
-    int srcPort = Integer.parseInt(data[4]);
-    int destPort = Integer.parseInt(data[5]);
-    int alertType = Integer.parseInt(data[6]);
+    try{
+      String[] data = normalizedData.split(";");
+      //[srcIP, destIP, timestamp, ruleID, srcPort, destPort, alertType]
+      double srcIP = Double.parseDouble(data[0]);
+      double destIP = Double.parseDouble(data[1]);
+      double timestamp = Double.parseDouble(data[2]);
+      int ruleID = Integer.parseInt(data[3]);
+      int srcPort = Integer.parseInt(data[4]);
+      int destPort = Integer.parseInt(data[5]);
+      int alertType = Integer.parseInt(data[6]);
+      
+      ArrayList<Double> dArr = new ArrayList<Double>();
+      dArr.add(srcIP);
+      dArr.add(destIP);
+      dArr.add(timestamp);
+      
+      ArrayList<Integer> iArr = new ArrayList<Integer>();
+      iArr.add(ruleID);
+      iArr.add(srcPort);
+      iArr.add(destPort);
+      iArr.add(alertType);
+      // System.out.println(iArr);
+          return new Entity(dArr, iArr);
 
-    ArrayList<Double> dArr = new ArrayList<Double>();
-    dArr.add(srcIP);
-    dArr.add(destIP);
-    dArr.add(timestamp);
-
-    ArrayList<Integer> iArr = new ArrayList<Integer>();
-    iArr.add(ruleID);
-    iArr.add(srcPort);
-    iArr.add(destPort);
-    iArr.add(alertType);
-    // System.out.println(iArr);
-    return new Entity(dArr, iArr);
+    }
+    catch(Exception e)
+      {
+      return null;
+      }
+    
   }
 
+  
   public static void main(String[] args)
   {
     Entity a = Entity.createRandomEntity(2,2);
